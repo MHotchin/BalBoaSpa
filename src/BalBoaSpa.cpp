@@ -1,16 +1,27 @@
 
 #include <Arduino.h>
 
+
 //  Try to figure out what our networking classes are
 #if defined ARDUINO_ARCH_ESP8266
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-typedef foo Networking;
+typedef WiFiClass Networking;
 typedef WiFiUDP SpaUdp;
+#elif defined ARDUINO_ARCH_ESP32
+#include <WiFi.h>
+namespace
+{
+	WiFiClass & Networking = WiFi;
+	typedef WiFiUDP SpaUdp;
+}
 #elif defined ARDUINO_ARCH_AVR
 #include <Ethernet.h>
-typedef EthernetClass Networking;
-typedef EthernetUDP SpaUdp;
+namespace
+{
+	EthernetClass &Networking = Ethernet;
+	typedef EthernetUDP SpaUdp;
+}
 #endif
 
 #include "crc.h"
@@ -41,7 +52,7 @@ BalBoa::BalBoaSpa::begin(
 		return false;
 	}
 
-	IPAddress broadcast = Networking::localIP();
+	IPAddress broadcast = Networking.localIP();
 
 	broadcast[3] = 255;
 
@@ -79,10 +90,8 @@ BalBoa::BalBoaSpa::begin(
 			{
 				buffer[responseSize] = '\0';
 
-				//Serial.println(buffer);
-
 				_ipHotTub = Udp.remoteIP();
-				//Serial.println(Udp.remoteIP());
+
 				Udp.flush();
 				Udp.stop();
 
@@ -217,12 +226,13 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 
 					if (fullLength >= _maxMessageLength)
 					{
-						Serial.println("Length too long?");
+						Serial.println(F("Length too long?"));
+						pMessageBase->Dump(_bufferUsed);
 					}
 
 					if (!pMessageBase->CheckCRC())
 					{
-						Serial.println("CRC mismatch?");
+						Serial.println(F("CRC mismatch?"));
 						Serial.println(pMessageBase->CalcCRC());
 
 						pMessageBase->Dump();
@@ -241,6 +251,12 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 							{
 							case msStatus:
 								CrackStatusMessage(_messageBuffer);
+								if (_filters._filter1.stStart.hour == UNKNOWN_VAL)
+								{
+									//  We wait until a status message has arrived so we
+									//  know the right time format
+									SendFilterConfigRequest();
+								}
 								break;
 
 							case msConfigResponse:
@@ -261,6 +277,7 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 								break;
 
 							default:
+								Serial.println(F("Unknown message!"));
 								pMessageBase->Dump();
 								break;
 							}
@@ -296,13 +313,13 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 				}
 				else
 				{
-					Serial.println("No prefix!");
+					Serial.println(F("No prefix!"));
 					Serial.println(_bufferUsed);
 
-					for (auto i = 0; i < _bufferUsed; i++)
-					{
-						//Serial.printf("%02X ", _messageBuffer[i]);
-					}
+					//for (auto i = 0; i < _bufferUsed; i++)
+					//{
+					//	Serial.printf("%02X ", _messageBuffer[i]);
+					//}
 					Serial.println();
 					_bufferUsed = 0;
 				}
@@ -318,13 +335,13 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 			_client.stop();
 		}
 
-		//  If there is *no* polling interval, but we are not receiving messages, then
-		//  close the connection to reset it.
+			
+		//  If  we are not receiving messages, then close the connection to reset it.
 		if (_client.connected())
 		{
-			if ((_pollingInterval == 0) && ((millis() - _lastMessageTime) > 5000))
+			if ( ((millis() - _lastMessageTime) > 5000))
 			{
-				Serial.println("Message timeout!");
+				Serial.println(F("Message timeout!"));
 
 				_client.stop();
 				return _changes;
@@ -335,14 +352,18 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 	{
 		if (_pollingInterval > 0)
 		{
-			//	Oh hey, it's been a while, maybe see what the hot-tub is doing these days...
+			
 			if ((millis() - _lastMessageTime) > _pollingInterval)
 			{
+				//	Oh hey, it's been a while, maybe see what the hot-tub is doing these
+				//	days...
 				Reconnect();
 			}
 
 			if ((millis() - _lastMessageTime) > _pollingInterval * 2)
 			{
+				//  WHY WON'T YOU ANSWER MY CALLS????
+				//  Assume we've completely lost contact, need to reset.
 				ResetInfo();
 			}
 
@@ -355,7 +376,7 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 
 	if (_bufferUsed != 0)
 	{
-		Serial.println("More message needed!");
+		Serial.println(F("More message needed!"));
 	}
 
 	return _changes;
@@ -412,6 +433,10 @@ const BalBoa::FilterInfo &
 BalBoa::BalBoaSpa::GetFilterInfo() const
 {
 	_changes &= ~scFilterTimes;
+
+	//  Make sure we have the latest time format.
+	_filters._filter1.stStart.displayAs24Hr = _time.displayAs24Hr;
+	_filters._filter2.stStart.displayAs24Hr = _time.displayAs24Hr;
 
 	return _filters;
 }
@@ -571,6 +596,7 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 	{
 		_time.displayAs24Hr = pMessage->_24hrTime;
 		_changes |= scTime;
+		_changes |= scFilterTimes;  //  Because time format has changed.
 	}
 
 	if (pMessage->_currentTemp != _currentTemp.temp)
@@ -637,8 +663,6 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 
 	if (static_cast<TriState>(pMessage->_filter2Running) != _filter2Running)
 	{
-		Serial.println(pMessage->_filter2Running);
-
 		_filter2Running = static_cast<TriState>(pMessage->_filter2Running);
 		_changes |= scFilterRunning;
 	}
@@ -680,7 +704,10 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 	{
 		Serial.print(_time.hour), Serial.print(':'), Serial.println(_time.minute);
 
-		(reinterpret_cast<StatusMessage *>(previousStatusMessage))->Dump();
+		StatusMessage M;
+		memcpy(&M, previousStatusMessage, sizeof(StatusMessage));
+
+		M.Dump();
 		pMess->Dump();
 
 		memcpy(previousStatusMessage, pMess, sizeof(StatusMessage));
@@ -785,6 +812,7 @@ BalBoa::BalBoaSpa::Reconnect()
 void
 BalBoa::BalBoaSpa::ResetInfo()
 {
+	// Serial.println(F("Spa Data Reset!"));
 	_client.stop();
 
 	_lastMessageTime = millis();

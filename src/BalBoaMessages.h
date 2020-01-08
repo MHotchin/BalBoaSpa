@@ -49,14 +49,14 @@ namespace BalBoa
 		uint32_t _messageType : 24;
 
 		void Dump() const;
-
+		void Dump(size_t) const;
 		void SetCRC();
 		bool CheckCRC() const;
 		byte CalcCRC() const;
 
 	protected:
 		MessageBase(size_t, unsigned long);
-
+		MessageBase() = default;
 	} __attribute__((packed));
 
 	//  The last two bytes of overhead are a check byte (8 bit CRC), and a suffix (also
@@ -74,8 +74,6 @@ namespace BalBoa
 	//  messages.
 	struct MessageBaseIncoming : public MessageBase
 	{
-	private:
-		MessageBaseIncoming() = delete;
 	};
 
 	struct MessageBaseOutgoing : public MessageBase

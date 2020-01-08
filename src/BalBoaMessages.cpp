@@ -19,10 +19,14 @@ BalBoa::MessageBase::MessageBase(size_t size, unsigned long messageType)
 
 void BalBoa::MessageBase::Dump() const
 {
-	auto length = _length + 2;
+	Dump(_length + 2);
+}
+
+void BalBoa::MessageBase::Dump(size_t size) const
+{
 	byte *pStart = (byte *)this;
 
-	for (auto i = 0; i < length; i++)
+	for (size_t i = 0; i < size; i++)
 	{
 		if (pStart[i] < 0x10)
 		{
@@ -33,7 +37,6 @@ void BalBoa::MessageBase::Dump() const
 
 	Serial.println();
 }
-
 
 void 
 BalBoa::MessageBase::SetCRC()

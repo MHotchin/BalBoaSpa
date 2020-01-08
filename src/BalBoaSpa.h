@@ -1,9 +1,12 @@
 
 
-#if defined ARDUINO_ARCH_ESP8266
+//  Try to determine the connection type we have based on what headers have been included.
+#if defined WiFi_h
 
 typedef WiFiClient SpaClient;
+#define ETHERNET_INCLUDED 1
 #elif defined ethernet_h_
+#define ETHERNET_INCLUDED 1
 
 typedef EthernetClient SpaClient;
 #endif
@@ -111,7 +114,7 @@ namespace BalBoa
 
 	struct MessageBase;
 
-#if defined ethernet_h_ || defined WfiHeaderStuff
+#if defined ETHERNET_INCLUDED
 	class BalBoaSpa
 	{
 	public:
@@ -211,21 +214,21 @@ namespace BalBoa
 
 		//  Current view of the Spa.  As new data comes in, it's compared to the current
 		//  view, and if different updated and change notifications set.
-		SpaTime       _time;
-		SpaTemp       _currentTemp;
-		SpaTemp       _setPoint;
-		TriState      _rangeHigh;
-		TriState      _tempCelsius;
-		PumpSpeed     _pump1Speed;
-		PumpSpeed     _pump2Speed;
-		PumpSpeed     _recirc;
-		TriState      _lights;
-		TriState      _heating;
-		FilterInfo    _filters;
-		TriState      _filter1Running;
-		TriState      _filter2Running;
-		VersionInfo   _version;
-		uint8_t       _messages;
+		SpaTime            _time;
+		SpaTemp            _currentTemp;
+		SpaTemp            _setPoint;
+		TriState           _rangeHigh;
+		TriState           _tempCelsius;
+		PumpSpeed          _pump1Speed;
+		PumpSpeed          _pump2Speed;
+		PumpSpeed          _recirc;
+		TriState           _lights;
+		TriState           _heating;
+		mutable FilterInfo _filters;
+		TriState           _filter1Running;
+		TriState           _filter2Running;
+		VersionInfo        _version;
+		uint8_t            _messages;
 	};
 #endif
 }
