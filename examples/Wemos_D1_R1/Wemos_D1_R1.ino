@@ -9,8 +9,8 @@
 
 #include <BalBoaSpa.h>
 
-const char *ssid = "hotchin.net";   //  Add your Wifi netowrk name here
-const char *passphrase = nullptr;   //  Add your WiFi password here
+const char *ssid = "YourWifiNetworkNameHere";   //  Add your Wifi netowrk name here
+const char *passphrase = "YourWifiPasswordhere";   //  Add your WiFi password here
 
 namespace
 {
