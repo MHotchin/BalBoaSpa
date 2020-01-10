@@ -1,11 +1,12 @@
 
 
-#ifndef  ARDUINO_ARCH_ESP32
-#error Wrong architecture, this code is for ESP32 based boards.
+#ifndef  ARDUINO_ARCH_ESP8266
+#error Wrong architecture, this code is for ESP8266 based boards.
 #endif
 
 #include <Arduino.h>
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
+
 #include <BalBoaSpa.h>
 
 const char *ssid = "hotchin.net";   //  Add your Wifi netowrk name here
@@ -143,7 +144,7 @@ loop()
         //  There doesn't seem to be a way to dismiss the message except at the touch
         //  panel.
 
-        Serial.print(F("Panel Message!"));
+        Serial.println(F("Panel Message!"));
     }
  
     if (!Spa)

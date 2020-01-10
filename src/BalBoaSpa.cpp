@@ -6,13 +6,16 @@
 #if defined ARDUINO_ARCH_ESP8266
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-typedef WiFiClass Networking;
-typedef WiFiUDP SpaUdp;
+namespace
+{
+	ESP8266WiFiClass &Networking = WiFi;
+	typedef WiFiUDP SpaUdp;
+}
 #elif defined ARDUINO_ARCH_ESP32
 #include <WiFi.h>
 namespace
 {
-	WiFiClass & Networking = WiFi;
+	WiFiClass &Networking = WiFi;
 	typedef WiFiUDP SpaUdp;
 }
 #elif defined ARDUINO_ARCH_AVR

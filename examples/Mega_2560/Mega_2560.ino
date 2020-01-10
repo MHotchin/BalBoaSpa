@@ -1,15 +1,19 @@
 
 
-#ifndef  ARDUINO_ARCH_ESP32
-#error Wrong architecture, this code is for ESP32 based boards.
+#ifndef  ARDUINO_ARCH_AVR
+#error Wrong architecture, this code is for ESP8266 based boards.
 #endif
 
+
 #include <Arduino.h>
-#include <WiFi.h>
+#include <SPI.h>
+#include <Ethernet.h>
+
 #include <BalBoaSpa.h>
 
-const char *ssid = "hotchin.net";   //  Add your Wifi netowrk name here
-const char *passphrase = nullptr;   //  Add your WiFi password here
+byte mac[] = {
+    0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02
+};
 
 namespace
 {
@@ -22,29 +26,19 @@ setup()
 	Serial.begin(115200);
 	while (!Serial);
 
-    WiFi.begin(ssid, passphrase);
+    Ethernet.init(SS);
 
-    unsigned long tNow = millis();
+    SPI.begin();
 
-    //  Wait up to 10 seconds to connect.
-    while ((WiFi.status() != WL_CONNECTED) && (millis() - tNow < 10000))
+    if (Ethernet.begin(mac, 1000))
     {
-        delay(250);
-        Serial.print(".");
-    }
-
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        Serial.println("");
-        Serial.println("WiFi connected");
-        Serial.print("IP address: "), Serial.println(WiFi.localIP());
+        Serial.print(F("Connected! IP address: "));
+        Serial.println(Ethernet.localIP());
     }
     else
     {
-        Serial.println();
-        Serial.print("Unable to connect to "), Serial.println(ssid);
+        Serial.println(F("Unable to start Ethernet."));
     }
-
     //  Default is to retrieve updates from the spa every 60 seconds.  ALL data is
     //  initially marked as 'changed', so you shouldn't need to have special
     //  initialization code.
@@ -143,7 +137,7 @@ loop()
         //  There doesn't seem to be a way to dismiss the message except at the touch
         //  panel.
 
-        Serial.print(F("Panel Message!"));
+        Serial.println(F("Panel Message!"));
     }
  
     if (!Spa)

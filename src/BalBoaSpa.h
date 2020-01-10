@@ -31,7 +31,7 @@ namespace BalBoa
 		scSetPoint = 1 << 2,       //  The set point or range changed
 		scPump1 = 1 << 3,          //  Pump 1 speed
 		scPump2 = 1 << 4,          //  Pump 2 speed
-		scRecirc = 1 << 5,         //  Recirc pump speed (untested!)
+		scRecirc = 1 << 5,         //  Recirc pump speed (currently not implemented)
 		scHeating = 1 << 6,        //  Heater on / off
 		scFilterTimes = 1 << 7,    //  Times for both filter cycles
 		scLights = 1 << 8,         //  Lights on / off
