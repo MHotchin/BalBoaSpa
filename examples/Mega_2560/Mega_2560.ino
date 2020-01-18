@@ -1,7 +1,7 @@
 
 
 #ifndef  ARDUINO_ARCH_AVR
-#error Wrong architecture, this code is for ESP8266 based boards.
+#error Wrong architecture, this code is for AVR (Uno / Mega 2560) based boards.
 #endif
 
 

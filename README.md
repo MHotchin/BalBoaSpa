@@ -9,7 +9,7 @@ You can monitor and change most 'day-to-day' settings.  Notably absent right now
  
  ## Examples
 
-Cross platform networking is a bit of a mess for Arduino, so there are three different exaples that differ by how the network is declared and initialized.
+Cross platform networking is a bit of a mess for Arduino, so there are three different examples that differ by how the network is declared and initialized.
  - Mega_2560:  Assumes a Wiznet style shield or add-on board, controlled over SPI
  - Wemos D1 R1: ESP8266 based board in an Uno form factor.
  - Wemos D1 R32: ESP32 based board in an Uno form factor.

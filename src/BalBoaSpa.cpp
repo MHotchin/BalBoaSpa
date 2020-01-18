@@ -24,6 +24,8 @@ namespace
 {
 	EthernetClass &Networking = Ethernet;
 	typedef EthernetUDP SpaUdp;
+
+
 }
 #endif
 
@@ -465,6 +467,12 @@ BalBoa::BalBoaSpa::GetRunningFilter() const
 
 
 BalBoa::TriState
+BalBoa::BalBoaSpa::IsTimeUnset() const
+{
+	return _timeUnset;
+}
+
+BalBoa::TriState
 BalBoa::BalBoaSpa::IsHeating() const
 {
 	_changes &= ~scHeating;
@@ -501,6 +509,15 @@ BalBoa::BalBoaSpa::GetPanelMessages() const
 {
 	_changes &= ~scPanelMessages;
 	return _messages;
+}
+
+
+BalBoa::TriState
+BalBoa::BalBoaSpa::IsPriming() const
+{
+	_changes &= ~scPriming;
+
+	return _priming;
 }
 
 
@@ -582,24 +599,36 @@ void
 BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 {
 	const StatusMessage *pMessage = reinterpret_cast<const StatusMessage *>(_messageBuffer);
+	
+	
+	// Only mark this off if something changed.
+	// _waitingForMessages &= ~wfmStatus;
+
+	unsigned int newChanges = 0;
 
 	if (pMessage->_hour != _time.hour)
 	{
 		_time.hour = pMessage->_hour;
-		_changes |= scTime;
+		newChanges |= scTime;
 	}
 
 	if (pMessage->_minute != _time.minute)
 	{
 		_time.minute = pMessage->_minute;
-		_changes |= scTime;
+		newChanges |= scTime;
 	}
 
 	if (pMessage->_24hrTime != _time.displayAs24Hr)
 	{
 		_time.displayAs24Hr = pMessage->_24hrTime;
-		_changes |= scTime;
-		_changes |= scFilterTimes;  //  Because time format has changed.
+		newChanges |= scTime;
+		newChanges |= scFilterTimes;  //  Because time format has changed.
+	}
+
+	if (pMessage->_timeUnset != _timeUnset)
+	{
+		_timeUnset = static_cast<TriState>(pMessage->_timeUnset);
+		newChanges |= scTime;
 	}
 
 	if (pMessage->_currentTemp != _currentTemp.temp)
@@ -607,7 +636,7 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 		_currentTemp.temp = pMessage->_currentTemp;
 		_currentTemp.isCelsiusX2 = pMessage->_tempScaleCelsius;
 
-		_changes |= scTemp;
+		newChanges |= scTemp;
 	}
 
 
@@ -616,68 +645,78 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 		_setPoint.temp = pMessage->_setTemp;
 		_setPoint.isCelsiusX2 = pMessage->_tempScaleCelsius;
 
-		_changes |= scSetPoint;
+		newChanges |= scSetPoint;
 	}
 
 
 	if (static_cast<TriState>(pMessage->_tempRange) != _rangeHigh)
 	{
 		_rangeHigh = static_cast<TriState>(pMessage->_tempRange);
-		_changes |= scSetPoint;
+		newChanges |= scSetPoint;
 	}
 
 	if (static_cast<TriState>(pMessage->_tempScaleCelsius) != _tempCelsius)
 	{
 		_tempCelsius = static_cast<TriState>(pMessage->_tempScaleCelsius);
-		_changes |= (scTemp | scSetPoint);
+		newChanges |= (scTemp | scSetPoint);
 	}
 
 	if (pMessage->_pump1 != _pump1Speed)
 	{
 		_pump1Speed = static_cast<BalBoa::PumpSpeed>(pMessage->_pump1);
 
-		_changes |= scPump1;
+		newChanges |= scPump1;
 	}
 
 	if (pMessage->_pump2 != _pump2Speed)
 	{
 		_pump2Speed = static_cast<BalBoa::PumpSpeed>(pMessage->_pump2);
 
-		_changes |= scPump2;
+		newChanges |= scPump2;
 	}
 
 	if (static_cast<TriState>(pMessage->_light != 0) != _lights)
 	{
 		_lights = static_cast<TriState>(pMessage->_light != 0);
-		_changes |= scLights;
+		newChanges |= scLights;
 	}
 
 	if (static_cast<TriState>(pMessage->_heating != 0) != _heating)
 	{
 		_heating = static_cast<TriState>(pMessage->_heating != 0);
-		_changes |= scHeating;
+		newChanges |= scHeating;
 	}
 
-	if (static_cast<TriState>(pMessage->_filter1Running) != _filter1Running)
+	if (static_cast<TriState>(pMessage->_filter1Running != 0) != _filter1Running)
 	{
-		_filter1Running = static_cast<TriState>(pMessage->_filter1Running);
-		_changes |= scFilterRunning;
+		_filter1Running = static_cast<TriState>(pMessage->_filter1Running != 0);
+		newChanges |= scFilterRunning;
 	}
 
-	if (static_cast<TriState>(pMessage->_filter2Running) != _filter2Running)
+	if (static_cast<TriState>(pMessage->_filter2Running != 0) != _filter2Running)
 	{
-		_filter2Running = static_cast<TriState>(pMessage->_filter2Running);
-		_changes |= scFilterRunning;
+		_filter2Running = static_cast<TriState>(pMessage->_filter2Running != 0);
+		newChanges |= scFilterRunning;
 	}
 
 	if (pMessage->_panelMessage != _messages)
 	{
 		_messages = pMessage->_panelMessage;
-		_changes |= scPanelMessages;
+		newChanges |= scPanelMessages;
 	}
 
-	_waitingForMessages &= ~wfmStatus;
+	if (static_cast<TriState>(pMessage->_priming != 0) != _priming)
+	{
+		_priming = static_cast<TriState>(pMessage->_priming != 0);
+		newChanges |= scPriming;
+	}
 
+	if (newChanges)
+	{
+		_waitingForMessages &= ~wfmStatus;
+
+		_changes |= newChanges;
+	}
 
 	//  Look to see how the 'unknown' areas change, maybe we can figure some more stuff
 	//  out.  
@@ -694,6 +733,7 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 	pMess->_panelMessage     &= 0b11110001;
 	pMess->_24hrTime         = 0;
 	pMess->_tempRange        = 0;
+	pMess->_timeUnset        = 0;
 	pMess->_heating          = 0;
 	pMess->_pump1            = 0;
 	pMess->_pump2            = 0;
@@ -834,6 +874,7 @@ BalBoa::BalBoaSpa::ResetInfo()
 	_pump1Speed     = psUNKNOWN;
 	_pump2Speed     = psUNKNOWN;
 	_recirc         = psUNKNOWN;
+	_timeUnset      = tsUnknown;
 	_lights         = tsUnknown;
 	_heating        = tsUnknown;
 	_filter1Running = tsUnknown;

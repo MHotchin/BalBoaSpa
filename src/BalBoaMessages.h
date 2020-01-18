@@ -134,7 +134,11 @@ namespace BalBoa
 		byte : 0;                   //
 		byte _light : 2;            // 14
 		byte : 0;                   //
-		byte _r7[5];                // 15
+		byte _r7[3];                // 15->17
+		byte _r7a : 1;              // both 18 & 19, bit 2 seem related to time not
+		byte _timeUnset : 1;        // yet set.
+		byte : 0;
+		byte _r7b;                  // 19
 		byte _setTemp;              // 20
 		byte _r8 : 2;               // 21
 		byte _systemHold : 1;

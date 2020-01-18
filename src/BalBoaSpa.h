@@ -38,7 +38,8 @@ namespace BalBoa
 		scVersion = 1 << 9,        //  Balboa software version
 		scFilterRunning = 1 << 10, //  What filter cycle is currently running
 		scPanelMessages = 1 << 11, //  Message displayed on panel
-		scMASK = (1 << 12) - 1
+		scPriming = 1 << 12,       //  Hot-tub is priming (power-on start-up)
+		scMASK = (1 << 13) - 1
 	};
 
 
@@ -148,12 +149,13 @@ namespace BalBoa
 		PumpSpeed GetPump2Speed() const;         // scPump2
 		const FilterInfo &GetFilterInfo() const; // scFilterTimes
 		RunningFilter GetRunningFilter() const;  // scFilterRunning
+		TriState IsTimeUnset() const;
 		TriState IsHeating() const;              // scHeating
 		TriState IsLightOn() const;              // scLights
 		TriState IsHighRange() const;            // scSetPoint
 		const VersionInfo &GetVersion() const;   // scVersion
 		uint8_t GetPanelMessages() const;        // scPanelMessages
-
+		TriState IsPriming() const;              // scPriming
 		void SendFilterConfigRequest();
 
 		//  Calling any of these will likely cause change notifications to come back.  So,
@@ -222,6 +224,7 @@ namespace BalBoa
 		PumpSpeed          _pump1Speed;
 		PumpSpeed          _pump2Speed;
 		PumpSpeed          _recirc;
+		TriState           _timeUnset;
 		TriState           _lights;
 		TriState           _heating;
 		mutable FilterInfo _filters;
@@ -229,6 +232,7 @@ namespace BalBoa
 		TriState           _filter2Running;
 		VersionInfo        _version;
 		uint8_t            _messages;
+		TriState           _priming;
 	};
 #endif
 }
