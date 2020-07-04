@@ -125,6 +125,7 @@ namespace BalBoa
 		bool spaLocated() const;
 		explicit operator bool() const;   //  Returns 'true' once spa has been contacted
 		const IPAddress &GetSpaIP();
+		void disconnect();
 
 		unsigned long getPollingInterval();
 		void setPollingInterval(unsigned long pollingInterval);  //  Milli-seconds

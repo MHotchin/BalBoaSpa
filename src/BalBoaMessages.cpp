@@ -1,13 +1,7 @@
-// 
-// 
-// 
 #include <Arduino.h>
 #include "crc.h"
 #include "BalBoaSpa.h"
 #include "BalBoaMessages.h"
-
-
-
 
 BalBoa::MessageBase::MessageBase(size_t size, unsigned long messageType)
 {
@@ -26,6 +20,9 @@ void BalBoa::MessageBase::Dump(size_t size) const
 {
 	byte *pStart = (byte *)this;
 
+	Serial.print(F("Dump - # bytes: "));
+	Serial.println(size);
+
 	for (size_t i = 0; i < size; i++)
 	{
 		if (pStart[i] < 0x10)
@@ -35,7 +32,7 @@ void BalBoa::MessageBase::Dump(size_t size) const
 		Serial.print(pStart[i], HEX), Serial.print(' ');
 	}
 
-	Serial.println();
+	if (size > 0) Serial.println();
 }
 
 void 

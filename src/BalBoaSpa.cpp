@@ -134,6 +134,13 @@ BalBoa::BalBoaSpa::operator bool() const
 }
 
 
+void
+BalBoa::BalBoaSpa::disconnect()
+{
+	_client.stop();
+}
+
+
 const IPAddress &
 BalBoa::BalBoaSpa::GetSpaIP()
 {
@@ -207,7 +214,6 @@ BalBoa::BalBoaSpa::SendMessage(
 
 unsigned int BalBoa::BalBoaSpa::GetChanges()
 {
-
 	// Process incoming messages
 	if (_client.connected())
 	{
@@ -215,11 +221,29 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 
 		while ((_bufferUsed >= 7) || (available > 0))
 		{
-			auto amountToRead = min(available, _maxMessageLength);
-			amountToRead = min(amountToRead, _maxMessageLength - _bufferUsed);
+			auto amountToRead = min(available, _maxMessageLength - _bufferUsed);
 
-			_bufferUsed += _client.read(_messageBuffer + _bufferUsed, amountToRead);
+			//  Docs are...  misleading.  I'm getting -1 return values on read()
+			//  sometimes.  
+			auto amountRead = _client.read(_messageBuffer + _bufferUsed, amountToRead);
 
+			if (amountRead < 0)
+			{
+				Serial.println(F("read() error!"));
+				Serial.println(amountToRead);
+
+				MessageBase *pMessageBase = reinterpret_cast<MessageBase *>(_messageBuffer);
+				pMessageBase->Dump(_bufferUsed);
+				_bufferUsed = 0;
+				_client.stop();
+				return _changes;
+			}
+			else
+			{
+				_bufferUsed += amountRead;
+			}
+
+			//  Minimum possible message length is 7
 			if (_bufferUsed >= 7)
 			{
 				MessageBase *pMessageBase = reinterpret_cast<MessageBase *>(_messageBuffer);
@@ -233,6 +257,7 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 					{
 						Serial.println(F("Length too long?"));
 						pMessageBase->Dump(_bufferUsed);
+						_bufferUsed = 0;
 					}
 
 					if (!pMessageBase->CheckCRC())
@@ -242,7 +267,6 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 
 						pMessageBase->Dump();
 					}
-
 
 					if (fullLength <= _bufferUsed)
 					{
@@ -308,12 +332,6 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 						Serial.println(F("Await more data."));
 						Serial.println(_bufferUsed);
 						Serial.println(fullLength);
-						for (auto i = 0; i < _bufferUsed; i++)
-						{
-							//Serial.printf("%02X ", _messageBuffer[i]);
-						}
-						Serial.println();
-
 					}
 				}
 				else
@@ -340,11 +358,11 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 			_client.stop();
 		}
 
-			
+
 		//  If  we are not receiving messages, then close the connection to reset it.
 		if (_client.connected())
 		{
-			if ( ((millis() - _lastMessageTime) > 5000))
+			if (((millis() - _lastMessageTime) > 5000))
 			{
 				Serial.println(F("Message timeout!"));
 
@@ -357,7 +375,7 @@ unsigned int BalBoa::BalBoaSpa::GetChanges()
 	{
 		if (_pollingInterval > 0)
 		{
-			
+
 			if ((millis() - _lastMessageTime) > _pollingInterval)
 			{
 				//	Oh hey, it's been a while, maybe see what the hot-tub is doing these
@@ -548,7 +566,7 @@ BalBoa::BalBoaSpa::TogglePump1()
 {
 	ToggleItemMessage message(BalBoa::tiPump1);
 
-	
+
 	SendMessage(&message);
 }
 
@@ -599,8 +617,8 @@ void
 BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 {
 	const StatusMessage *pMessage = reinterpret_cast<const StatusMessage *>(_messageBuffer);
-	
-	
+
+
 	// Only mark this off if something changed.
 	// _waitingForMessages &= ~wfmStatus;
 
@@ -724,23 +742,23 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 	StatusMessage *pMess = const_cast<StatusMessage *>(pMessage);
 
 	//  Blank out the bits we know about.
-	pMess->_priming          = 0;
-	pMess->_currentTemp      = 0;
-	pMess->_hour             = 0;
-	pMess->_minute           = 0;
-	pMess->_heatingMode      = 0;
+	pMess->_priming = 0;
+	pMess->_currentTemp = 0;
+	pMess->_hour = 0;
+	pMess->_minute = 0;
+	pMess->_heatingMode = 0;
 	pMess->_tempScaleCelsius = 0;
-	pMess->_panelMessage     &= 0b11110001;
-	pMess->_24hrTime         = 0;
-	pMess->_tempRange        = 0;
-	pMess->_timeUnset        = 0;
-	pMess->_heating          = 0;
-	pMess->_pump1            = 0;
-	pMess->_pump2            = 0;
-	pMess->_circPump         = 0;
-	pMess->_light            = 0;
-	pMess->_setTemp          = 0;
-	pMess->_suffix._check    = 0;
+	pMess->_panelMessage &= 0b11110001;
+	pMess->_24hrTime = 0;
+	pMess->_tempRange = 0;
+	pMess->_timeUnset = 0;
+	pMess->_heating = 0;
+	pMess->_pump1 = 0;
+	pMess->_pump2 = 0;
+	pMess->_circPump = 0;
+	pMess->_light = 0;
+	pMess->_setTemp = 0;
+	pMess->_suffix._check = 0;
 
 	//  Look for changes
 	if (memcmp(pMess, previousStatusMessage, sizeof(StatusMessage)) != 0)
@@ -770,19 +788,19 @@ BalBoa::BalBoaSpa::CrackFilterMessage(const byte *_messageBuffer)
 {
 	const FilterStatusMessage *pMessage = (const FilterStatusMessage *)_messageBuffer;
 
-	_filters._filter1.stStart.hour             = pMessage->filter1StartHour;
-	_filters._filter1.stStart.minute           = pMessage->filter1StartMinute;
-	_filters._filter1.stStart.displayAs24Hr    = _time.displayAs24Hr;
-	_filters._filter1.stDuration.hour          = pMessage->filter1DurationHours;
-	_filters._filter1.stDuration.minute        = pMessage->filter1DurationMinutes;
+	_filters._filter1.stStart.hour = pMessage->filter1StartHour;
+	_filters._filter1.stStart.minute = pMessage->filter1StartMinute;
+	_filters._filter1.stStart.displayAs24Hr = _time.displayAs24Hr;
+	_filters._filter1.stDuration.hour = pMessage->filter1DurationHours;
+	_filters._filter1.stDuration.minute = pMessage->filter1DurationMinutes;
 	_filters._filter1.stDuration.displayAs24Hr = true;
 
-	_filters._filter2Enabled                   = pMessage->filter2enabled;
-	_filters._filter2.stStart.hour             = pMessage->filter2StartHour;
-	_filters._filter2.stStart.minute           = pMessage->filter2StartMinute;
-	_filters._filter2.stStart.displayAs24Hr    = _time.displayAs24Hr;
-	_filters._filter2.stDuration.hour          = pMessage->filter2DurationHours;
-	_filters._filter2.stDuration.minute        = pMessage->filter2DurationMinutes;
+	_filters._filter2Enabled = pMessage->filter2enabled;
+	_filters._filter2.stStart.hour = pMessage->filter2StartHour;
+	_filters._filter2.stStart.minute = pMessage->filter2StartMinute;
+	_filters._filter2.stStart.displayAs24Hr = _time.displayAs24Hr;
+	_filters._filter2.stDuration.hour = pMessage->filter2DurationHours;
+	_filters._filter2.stDuration.minute = pMessage->filter2DurationMinutes;
 	_filters._filter2.stDuration.displayAs24Hr = true;
 
 	_changes |= scFilterTimes;
@@ -866,25 +884,25 @@ BalBoa::BalBoaSpa::ResetInfo()
 		_changes = SpaChanges::scMASK;
 	}
 
-	_time           = {UNKNOWN_VAL, UNKNOWN_VAL, true};
-	_currentTemp    = {UNKNOWN_VAL, false};
-	_setPoint       = {UNKNOWN_VAL, false};
-	_rangeHigh      = tsUnknown;
-	_tempCelsius    = tsUnknown;
-	_pump1Speed     = psUNKNOWN;
-	_pump2Speed     = psUNKNOWN;
-	_recirc         = psUNKNOWN;
-	_timeUnset      = tsUnknown;
-	_lights         = tsUnknown;
-	_heating        = tsUnknown;
+	_time = {UNKNOWN_VAL, UNKNOWN_VAL, true};
+	_currentTemp = {UNKNOWN_VAL, false};
+	_setPoint = {UNKNOWN_VAL, false};
+	_rangeHigh = tsUnknown;
+	_tempCelsius = tsUnknown;
+	_pump1Speed = psUNKNOWN;
+	_pump2Speed = psUNKNOWN;
+	_recirc = psUNKNOWN;
+	_timeUnset = tsUnknown;
+	_lights = tsUnknown;
+	_heating = tsUnknown;
 	_filter1Running = tsUnknown;
 	_filter2Running = tsUnknown;
 
-	_ipHotTub = INADDR_NONE;
+	// _ipHotTub = INADDR_NONE;
 
 	_filters = {{{UNKNOWN_VAL, UNKNOWN_VAL, true}, {UNKNOWN_VAL, UNKNOWN_VAL, true}},
 	{{UNKNOWN_VAL, UNKNOWN_VAL, true}, {UNKNOWN_VAL, UNKNOWN_VAL, true}}, true};
-		
+
 
 	_version = {UNKNOWN_VAL, {UNKNOWN_VAL, UNKNOWN_VAL, UNKNOWN_VAL}, 0xFFFFFFFF, {'\0'}};
 
