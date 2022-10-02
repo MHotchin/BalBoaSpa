@@ -146,6 +146,7 @@ namespace BalBoa
 		const SpaTime &GetSpaTime() const;       // scTime
 		const SpaTemp &GetSpaTemp() const;       // scTemp
 		const SpaTemp &GetSetTemp() const;       // scSetPoint
+		TriState IsRecirc() const;		         // scRecirc
 		PumpSpeed GetPump1Speed() const;         // scPump1
 		PumpSpeed GetPump2Speed() const;         // scPump2
 		const FilterInfo &GetFilterInfo() const; // scFilterTimes
@@ -224,7 +225,7 @@ namespace BalBoa
 		TriState           _tempCelsius;
 		PumpSpeed          _pump1Speed;
 		PumpSpeed          _pump2Speed;
-		PumpSpeed          _recirc;
+		TriState           _recirc;
 		TriState           _timeUnset;
 		TriState           _lights;
 		TriState           _heating;
