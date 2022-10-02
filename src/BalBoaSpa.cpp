@@ -432,6 +432,13 @@ BalBoa::BalBoaSpa::GetSetTemp() const
 	return _setPoint;
 }
 
+BalBoa::TriState
+BalBoa::BalBoaSpa::IsRecirc() const
+{
+	_changes &= ~scRecirc;
+
+	return _recirc;
+}
 
 BalBoa::PumpSpeed
 BalBoa::BalBoaSpa::GetPump1Speed() const
@@ -705,6 +712,12 @@ BalBoa::BalBoaSpa::CrackStatusMessage(const byte *_messageBuffer)
 		newChanges |= scHeating;
 	}
 
+	if (static_cast<TriState>(pMessage->_circPump != 0) != _recirc)
+	{
+		_recirc = static_cast<TriState>(pMessage->_circPump != 0);
+		newChanges |= scRecirc;
+	}
+
 	if (static_cast<TriState>(pMessage->_filter1Running != 0) != _filter1Running)
 	{
 		_filter1Running = static_cast<TriState>(pMessage->_filter1Running != 0);
@@ -891,7 +904,7 @@ BalBoa::BalBoaSpa::ResetInfo()
 	_tempCelsius = tsUnknown;
 	_pump1Speed = psUNKNOWN;
 	_pump2Speed = psUNKNOWN;
-	_recirc = psUNKNOWN;
+	_recirc = tsUnknown;
 	_timeUnset = tsUnknown;
 	_lights = tsUnknown;
 	_heating = tsUnknown;
